@@ -71,3 +71,19 @@ table th {
 table td {
     background-color: white;
 }
+
+/* Add this to your styles.css */
+.logout-btn {
+    float: right;
+    margin-top: -50px;
+    padding: 10px;
+    background-color: #003f8a;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.logout-btn:hover {
+    background-color: #003f8a;
+}
