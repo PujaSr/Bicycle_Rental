@@ -10,6 +10,8 @@
     <header>
         <div class="header">
             <h1>Welcome, {{ session['name'] }}</h1>
+            <!-- Logout button added here -->
+            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
         </div>
     </header>
 
