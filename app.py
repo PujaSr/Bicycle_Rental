@@ -79,28 +79,32 @@ def dashboard():
     cursor.execute('SELECT * FROM cycles')
     cycles = cursor.fetchall()
 
-    # Calculate overdue status for each cycle
+    # Calculate overdue status and time to return for each cycle
     updated_cycles = []
     for cycle in cycles:
         if cycle[1] == 'Not Available':
-            cursor.execute('SELECT rented_time, return_time FROM bookings WHERE cycle_id = %s AND return_time IS NULL', (cycle[0],))
+            cursor.execute('SELECT rented_time, return_time FROM bookings WHERE cycle_id = %s AND return_time IS NOT NULL', (cycle[0],))
             booking = cursor.fetchone()
             if booking:
                 rented_time = booking[0]
                 return_time = booking[1]
                 current_time = datetime.now()
 
-                if return_time is not None:  # Only check overdue status if return_time is not None
-                    if current_time > return_time:
+                if return_time is not None:
+                    # Calculate the time to return
+                    if return_time > current_time:
+                        days_remaining = (return_time - current_time).days
+                        overdue_status = 'On Time'
+                    else:
+                        days_remaining = 0  # If overdue, set days_remaining to 0
                         overdue_days = (current_time - return_time).days
                         overdue_status = f'Overdue by {overdue_days} days'
-                    else:
-                        overdue_status = 'On Time'
                 else:
+                    days_remaining = 'N/A'
                     overdue_status = 'Not Returned Yet'
                 
                 # Append return time and overdue status to the cycle tuple
-                updated_cycles.append(cycle + (return_time, overdue_status))
+                updated_cycles.append(cycle + (days_remaining, overdue_status))
         else:
             updated_cycles.append(cycle + (None, None))
 
@@ -114,30 +118,37 @@ def book_cycle(cycle_id):
         flash('Please log in to book a cycle.', 'danger')
         return redirect(url_for('login'))
 
-    # Check if the user already booked a cycle
-    cursor = mysql.connection.cursor()
-    cursor.execute('SELECT * FROM bookings WHERE user_id = %s AND return_time IS NULL', (session['user_id'],))
-    active_booking = cursor.fetchone()
+    try:
+        # Get rental days from the form
+        rental_days = int(request.form['rental_days'])
 
-    if active_booking:
-        flash('You already have an active booking. Please return the cycle before booking another.', 'danger')
+        # Check if the user already booked a cycle
+        cursor = mysql.connection.cursor()
+        cursor.execute('SELECT * FROM bookings WHERE user_id = %s AND return_time IS NULL', (session['user_id'],))
+        active_booking = cursor.fetchone()
+
+        if active_booking:
+            flash('You already have an active booking. Please return the cycle before booking another.', 'danger')
+            return redirect(url_for('dashboard'))
+
+        # Calculate the return time based on rental days
+        return_time = datetime.now() + timedelta(days=rental_days)
+
+        # Update cycle status and create a booking
+        cursor.execute('UPDATE cycles SET status = %s, user_id = %s WHERE cycle_id = %s', ('Not Available', session['user_id'], cycle_id))
+        
+        cursor.execute('INSERT INTO bookings (user_id, cycle_id, rental_days, return_time) VALUES (%s, %s, %s, %s)', 
+                       (session['user_id'], cycle_id, rental_days, return_time))
+        mysql.connection.commit()
+        
+        cursor.close()
+
+        flash(f'Cycle successfully booked for {rental_days} days!', 'success')
         return redirect(url_for('dashboard'))
 
-    # Get rental days from the form
-    rental_days = int(request.form['rental_days'])
-
-    # Calculate the return time based on rental days
-    return_time = datetime.now() + timedelta(days=rental_days)
-
-    # Update cycle status and create a booking
-    cursor.execute('UPDATE cycles SET status = %s, user_id = %s WHERE cycle_id = %s', ('Not Available', session['user_id'], cycle_id))
-    cursor.execute('INSERT INTO bookings (user_id, cycle_id, rental_days, return_time) VALUES (%s, %s, %s, %s)', 
-                   (session['user_id'], cycle_id, rental_days, return_time))
-    mysql.connection.commit()
-    cursor.close()
-
-    flash(f'Cycle successfully booked for {rental_days} days!', 'success')
-    return redirect(url_for('dashboard'))
+    except Exception as e:
+        flash(f'Error in booking cycle: {str(e)}', 'danger')
+        return redirect(url_for('dashboard'))
 
 # Logging out
 @app.route('/logout')
@@ -146,6 +157,6 @@ def logout():
     flash('You have been logged out!', 'info')
     return redirect(url_for('home'))
 
-# Start the Flask app
+# Start the Flask app without debug mode
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
