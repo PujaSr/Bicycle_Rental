@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Bicycle Rental</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header>
+        <div class="header">
+            <h1>Welcome, {{ session['name'] }}</h1>
+        </div>
+    </header>
+
+    <div class="container">
+        <h2>Available Cycles</h2>
+        <table>
+            <tr>
+                <th>Cycle ID</th>
+                <th>Status</th>
+                <th>Time to Return (days)</th>
+                <th>Overdue</th>
+                <th>Action</th>
+            </tr>
+            {% for cycle in cycles %}
+            <tr>
+                <td>{{ cycle[0] }}</td>
+                <td>{{ cycle[1] }}</td>
+                <td>
+                    {% if cycle[1] == 'Not Available' %}
+                        {% if cycle[3] %}
+                            {{ cycle[3].days }} days
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>
+                    {% if cycle[1] == 'Not Available' %}
+                        {% if cycle[4] %}
+                            {{ cycle[4] }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>
+                    {% if cycle[1] == 'Available' %}
+                        <form method="POST" action="{{ url_for('book_cycle', cycle_id=cycle[0]) }}">
+                            <label for="rental_days">Rental Days:</label>
+                            <input type="number" name="rental_days" required>
+                            <button type="submit">Book</button>
+                        </form>
+                    {% else %}
+                        Not Available
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html>
