@@ -29,8 +29,10 @@
                 <td>{{ cycle[1] }}</td>
                 <td>
                     {% if cycle[1] == 'Not Available' %}
-                        {% if cycle[3] %}
-                            {{ cycle[3].days }} days
+                        {% if cycle[3] != None %}
+                            {{ cycle[3] }} days
+                        {% else %}
+                            N/A
                         {% endif %}
                     {% else %}
                         N/A
@@ -38,9 +40,7 @@
                 </td>
                 <td>
                     {% if cycle[1] == 'Not Available' %}
-                        {% if cycle[4] %}
-                            {{ cycle[4] }}
-                        {% endif %}
+                        {{ cycle[4] }}
                     {% else %}
                         N/A
                     {% endif %}
