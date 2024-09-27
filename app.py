@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_mysqldb import MySQL
 from datetime import datetime, timedelta
@@ -7,11 +8,11 @@ import uuid
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 
-# MySQL configurations
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'Puja2024'  # Your MySQL password
-app.config['MYSQL_DB'] = 'bicycle_rental'
+# MySQL configurations using environment variables
+app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST', '35.244.54.218')  # Default to your IP if env variable is missing
+app.config['MYSQL_USER'] = os.getenv('MYSQL_USER', 'bicycle-rental')
+app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD', 'Puja2024')
+app.config['MYSQL_DB'] = os.getenv('MYSQL_DB', 'bicycle_rental')
 
 mysql = MySQL(app)
 
@@ -159,4 +160,4 @@ def logout():
 
 # Start the Flask app without debug mode
 if __name__ == '__main__':
-    app.run()
+    app.run(host='0.0.0.0', port=8080)

@@ -1,0 +1,24 @@
+runtime: python39  # or your Python version
+
+handlers:
+  - url: /static
+    static_dir: static
+
+  - url: /.*
+    script: auto
+
+entrypoint: gunicorn -b :$PORT app:app
+
+beta_settings:
+  cloud_sql_instances: bicyclerental-436718:asia-south1:bicycle-rental
+
+  env_variables:
+  MYSQL_HOST: '35.244.54.218'
+  MYSQL_USER: 'bicycle-rental'
+  MYSQL_PASSWORD: 'Puja2024'
+  MYSQL_DB: 'bicycle_rental'  
+
+
+
+
+
