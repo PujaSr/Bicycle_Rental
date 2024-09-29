@@ -1,0 +1,160 @@
+
+IIT-Jodhpur Bicycle Rental System Code Documentation
+=========================================
+
+This document provides detailed explanations of the code structure and functionality 
+for the Bicycle Rental System project.
+
+----------------------------------------
+File: app.py
+----------------------------------------
+
+This file contains the main Flask application that handles user authentication, 
+cycle booking and interaction with the MySQL database.
+
+Modules:
+    - home(): Displays the landing page.
+    - register(): Handles user registration.
+    - login(): Manages user login.
+    - dashboard(): Displays the user dashboard with available bicycles, booking status, Return Time left and overdue status.
+    - book_cycle(): Allows users to book a cycle.
+    - logout(): Logs the user out and clears session data.
+
+----------------------------------------
+Code Breakdown
+----------------------------------------
+
+1. **Home Route (`/`)**
+   Renders the landing page where users can choose to login or register.
+   - Template used: home.html
+
+2. **Register Route (`/register`)**
+   Handles user registration by accepting user details such as name, mobile number and password.
+   The password is hashed for security purposes before being stored in the MySQL database.
+   - Template used: register.html
+
+3. **Login Route (`/login`)**
+   Authenticates users by checking their mobile number and password against stored data.
+   Upon successful login, a session is created to maintain the user's state.
+   - Template used: login.html
+
+4. **Dashboard Route (`/dashboard`)**
+   Displays a list of available cycles along with rental details if any are already booked.
+   It also checks for overdue cycles and shows relevant information to the user.
+   - Template used: dashboard.html
+
+5. **Cycle Booking Route (`/book/<cycle_id>`)**
+   Allows users to book a cycle for a specified number of rental days. The cycle's status is 
+   updated in the database and the rental period is calculated.
+
+6. **Logout Route (`/logout`)**
+   Ends the user session and redirects them to the homepage.
+
+----------------------------------------
+Templates
+----------------------------------------
+
+1. **home.html**
+   - Landing page for the Bicycle Rental System.
+   - Provides options to either login or register.
+
+2. **register.html**
+   - User registration form where users input their name, mobile number, and password.
+
+3. **login.html**
+   - User login form where users provide their mobile number and password for authentication.
+
+4. **dashboard.html**
+   - Displays available cycles along with rental information and status.
+   - Provides the option for users to book cycles if they are available.
+
+----------------------------------------
+Database Schema
+----------------------------------------
+
+1. **users Table**
+   - Stores user information such as `id`, `name`, `mobile_number`, and `password`.
+   - Passwords are hashed for security.
+
+2. **cycles Table**
+   - Stores cycle details such as `cycle_id` and `status` (Available or Not Available).
+   - Links to the `users` table to show which user has rented a cycle.
+
+3. **bookings Table**
+   - Stores booking information such as `booking_id`, `user_id`, `cycle_id`, `rental_days`, 
+     and `return_time`.
+
+----------------------------------------
+Code Snippets
+----------------------------------------
+
+Example of registering a user and hashing the password:
+```python
+# User registration
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        user_id = str(uuid.uuid4())  # Generate unique ID
+        name = request.form['name']
+        mobile_number = request.form['mobile_number']
+        password = request.form['password']
+
+        # Hash the password for security
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+
+        # Insert user into the database
+        cursor = mysql.connection.cursor()
+        cursor.execute('INSERT INTO users (id, name, mobile_number, password) VALUES (%s, %s, %s, %s)', 
+                       (user_id, name, mobile_number, hashed_password))
+        mysql.connection.commit()
+        cursor.close()
+
+        flash('Registration successful! Please log in.', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('register.html')
+```
+
+# Cycle booking with rental days
+@app.route('/book/<cycle_id>', methods=['POST'])
+def book_cycle(cycle_id):
+    if 'user_id' not in session:
+        flash('Please log in to book a cycle.', 'danger')
+        return redirect(url_for('login'))
+
+    try:
+        # Get rental days from the form
+        rental_days = int(request.form['rental_days'])
+
+        # Check if the user already booked a cycle
+        cursor = mysql.connection.cursor()
+        cursor.execute('SELECT * FROM bookings WHERE user_id = %s AND return_time IS NULL', (session['user_id'],))
+        active_booking = cursor.fetchone()
+
+        if active_booking:
+            flash('You already have an active booking. Please return the cycle before booking another.', 'danger')
+            return redirect(url_for('dashboard'))
+
+        # Calculate the return time based on rental days
+        return_time = datetime.now() + timedelta(days=rental_days)
+
+        # Update cycle status and create a booking
+        cursor.execute('UPDATE cycles SET status = %s, user_id = %s WHERE cycle_id = %s', ('Not Available', session['user_id'], cycle_id))
+        
+        cursor.execute('INSERT INTO bookings (user_id, cycle_id, rental_days, return_time) VALUES (%s, %s, %s, %s)', 
+                       (session['user_id'], cycle_id, rental_days, return_time))
+        mysql.connection.commit()
+        
+        cursor.close()
+
+        flash(f'Cycle successfully booked for {rental_days} days!', 'success')
+        return redirect(url_for('dashboard'))
+
+    except Exception as e:
+        flash(f'Error in booking cycle: {str(e)}', 'danger')
+        return redirect(url_for('dashboard'))
+```
+
+----------------------------------------
+End of Documentation
+----------------------------------------
