@@ -150,7 +150,7 @@ def book_cycle(cycle_id):
         flash(f'Error in booking cycle: {str(e)}', 'danger')
         return redirect(url_for('dashboard'))
 
-# Logging out
+# Log
 @app.route('/logout')
 def logout():
     session.clear()
