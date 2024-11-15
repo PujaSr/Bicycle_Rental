@@ -11,6 +11,7 @@ The Bicycle Rental Management System is a web-based application designed to faci
 - **Booking Management**: The system tracks each user's current booking and ensures that only one bicycle is booked at a time.
 - **Real-Time Cycle Availability**: The availability of bicycles is updated in real-time as they are rented.
 - **Overdue Management**: The system tracks overdue rentals and updates the status of overdue cycles.
+- **admin dashboard**: The admin has the privilege to update the booking status to return from their admin dashboard. 
 
 ## Tech Stack
 ### Frontend:
@@ -32,7 +33,7 @@ The Bicycle Rental Management System is a web-based application designed to faci
 ## Project Setup (Local)
 ### 1. Clone the repository:
 ```bash
-git clone https://github.com/PujaSr/Bicycle_Rental/tree/main
+git clone https://github.com/PujaSr/Bicycle_Rental/tree/major-SDE
 cd bicycle_rental
 ```
 
@@ -104,11 +105,6 @@ The performance of the Bicycle Rental Management System was tested both locally 
 - **Resource Usage:** Cloud deployment automatically scales CPU and memory based on traffic, while local deployment is limited to the machine's hardware.
 - **Network Usage:** Network bandwidth usage is optimized in cloud deployment due to GCP's infrastructure.
 
-## Future Enhancements
-- **Microservices Architecture**: The main project will migrate the current monolithic architecture into a microservices architecture for better scalability and maintainability.
-- **Containerization**: Docker will be used for containerization, allowing the app to run in any environment.
-- **Real-time Notifications**: Kafka will be integrated to enable real-time notifications for cycle bookings and availability.
-- **Admin Dashboard**: A full-fledged admin dashboard will be implemented to allow admins to manage cycle bookings and availability.
 
 
 
