@@ -10,7 +10,7 @@ app.secret_key = 'your_secret_key'
 # MySQL configurations
 app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'Puja2024'  # Your MySQL password
+app.config['MYSQL_PASSWORD'] = 'Puja2024'
 app.config['MYSQL_DB'] = 'bicycle_rental'
 
 mysql = MySQL(app)
@@ -24,18 +24,16 @@ def home():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        user_id = str(uuid.uuid4())  # Generate unique ID
+        user_id = str(uuid.uuid4())
         name = request.form['name']
         mobile_number = request.form['mobile_number']
+        email = request.form['email']
         password = request.form['password']
-
-        # Hash the password for security
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
 
-        # Insert user into the database
         cursor = mysql.connection.cursor()
-        cursor.execute('INSERT INTO users (id, name, mobile_number, password) VALUES (%s, %s, %s, %s)', 
-                       (user_id, name, mobile_number, hashed_password))
+        cursor.execute('INSERT INTO users (id, name, mobile_number, email, password, is_admin) VALUES (%s, %s, %s, %s, %s, %s)', 
+                       (user_id, name, mobile_number, email, hashed_password, False))  # By default, users are not admins
         mysql.connection.commit()
         cursor.close()
 
@@ -59,8 +57,9 @@ def login():
         cursor.close()
 
         if user:
-            session['user_id'] = user[0]  # Store user ID in session
+            session['user_id'] = user[0]
             session['name'] = user[1]
+            session['is_admin'] = user[5]  # Assuming is_admin is at index 5 in the user record
             flash(f'Welcome, {user[1]}!', 'success')
             return redirect(url_for('dashboard'))
         else:
@@ -78,40 +77,10 @@ def dashboard():
     cursor = mysql.connection.cursor()
     cursor.execute('SELECT * FROM cycles')
     cycles = cursor.fetchall()
-
-    # Calculate overdue status and time to return for each cycle
-    updated_cycles = []
-    for cycle in cycles:
-        if cycle[1] == 'Not Available':
-            cursor.execute('SELECT rented_time, return_time FROM bookings WHERE cycle_id = %s AND return_time IS NOT NULL', (cycle[0],))
-            booking = cursor.fetchone()
-            if booking:
-                rented_time = booking[0]
-                return_time = booking[1]
-                current_time = datetime.now()
-
-                if return_time is not None:
-                    # Calculate the time to return
-                    if return_time > current_time:
-                        days_remaining = (return_time - current_time).days
-                        overdue_status = 'On Time'
-                    else:
-                        days_remaining = 0  # If overdue, set days_remaining to 0
-                        overdue_days = (current_time - return_time).days
-                        overdue_status = f'Overdue by {overdue_days} days'
-                else:
-                    days_remaining = 'N/A'
-                    overdue_status = 'Not Returned Yet'
-                
-                # Append return time and overdue status to the cycle tuple
-                updated_cycles.append(cycle + (days_remaining, overdue_status))
-        else:
-            updated_cycles.append(cycle + (None, None))
-
     cursor.close()
-    return render_template('dashboard.html', cycles=updated_cycles)
+    return render_template('dashboard.html', cycles=cycles)
 
-# Cycle booking with rental days
+# Cycle booking
 @app.route('/book/<cycle_id>', methods=['POST'])
 def book_cycle(cycle_id):
     if 'user_id' not in session:
@@ -119,38 +88,62 @@ def book_cycle(cycle_id):
         return redirect(url_for('login'))
 
     try:
-        # Get rental days from the form
         rental_days = int(request.form['rental_days'])
-
-        # Check if the user already booked a cycle
         cursor = mysql.connection.cursor()
+
+        # Check if the cycle is available
+        cursor.execute('SELECT status FROM cycles WHERE cycle_id = %s', (cycle_id,))
+        cycle = cursor.fetchone()
+        if not cycle or cycle[0] != 'Available':
+            flash('Cycle is not available for booking.', 'danger')
+            cursor.close()
+            return redirect(url_for('dashboard'))
+
+        # Check if the user already has an active booking
         cursor.execute('SELECT * FROM bookings WHERE user_id = %s AND return_time IS NULL', (session['user_id'],))
         active_booking = cursor.fetchone()
-
         if active_booking:
             flash('You already have an active booking. Please return the cycle before booking another.', 'danger')
+            cursor.close()
             return redirect(url_for('dashboard'))
 
         # Calculate the return time based on rental days
         return_time = datetime.now() + timedelta(days=rental_days)
-
-        # Update cycle status and create a booking
         cursor.execute('UPDATE cycles SET status = %s, user_id = %s WHERE cycle_id = %s', ('Not Available', session['user_id'], cycle_id))
-        
-        cursor.execute('INSERT INTO bookings (user_id, cycle_id, rental_days, return_time) VALUES (%s, %s, %s, %s)', 
+        cursor.execute('INSERT INTO bookings (user_id, cycle_id, rental_days, return_time) VALUES (%s, %s, %s, %s)',
                        (session['user_id'], cycle_id, rental_days, return_time))
         mysql.connection.commit()
-        
         cursor.close()
-
         flash(f'Cycle successfully booked for {rental_days} days!', 'success')
         return redirect(url_for('dashboard'))
 
     except Exception as e:
+        print(f"Error during booking process: {str(e)}")
         flash(f'Error in booking cycle: {str(e)}', 'danger')
         return redirect(url_for('dashboard'))
 
-# Log
+# Admin route to return a cycle
+@app.route('/return/<cycle_id>', methods=['POST'])
+def return_cycle(cycle_id):
+    if 'user_id' not in session or not session.get('is_admin'):
+        flash('Only admins can return cycles.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    try:
+        cursor = mysql.connection.cursor()
+        cursor.execute('UPDATE cycles SET status = %s, user_id = NULL WHERE cycle_id = %s', ('Available', cycle_id))
+        cursor.execute('UPDATE bookings SET return_time = %s WHERE cycle_id = %s AND return_time IS NULL', 
+                       (datetime.now(), cycle_id))
+        mysql.connection.commit()
+        cursor.close()
+        flash('Cycle returned successfully!', 'success')
+    except Exception as e:
+        print(f"Error during cycle return process: {str(e)}")
+        flash(f'Error in returning cycle: {str(e)}', 'danger')
+
+    return redirect(url_for('dashboard'))
+
+# Logging out
 @app.route('/logout')
 def logout():
     session.clear()
