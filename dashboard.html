@@ -10,7 +10,7 @@
     <header>
         <div class="header">
             <h1>Welcome, {{ session['name'] }}</h1>
-            <!-- Logout button added here -->
+            <!-- Logout button -->
             <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
         </div>
     </header>
@@ -49,13 +49,21 @@
                 </td>
                 <td>
                     {% if cycle[1] == 'Available' %}
+                        <!-- Booking form for available cycles -->
                         <form method="POST" action="{{ url_for('book_cycle', cycle_id=cycle[0]) }}">
                             <label for="rental_days">Rental Days:</label>
                             <input type="number" name="rental_days" required>
                             <button type="submit">Book</button>
                         </form>
                     {% else %}
-                        Not Available
+                        <!-- Return button only for admins if cycle is not available -->
+                        {% if session.get('is_admin') %}
+                            <form method="POST" action="{{ url_for('return_cycle', cycle_id=cycle[0]) }}">
+                                <button type="submit">Return</button>
+                            </form>
+                        {% else %}
+                            Not Available
+                        {% endif %}
                     {% endif %}
                 </td>
             </tr>
